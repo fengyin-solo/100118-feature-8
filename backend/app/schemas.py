@@ -21,6 +21,37 @@ class ActionResult(BaseModel):
     entry: dict[str, Any] | None = None
 
 
+class BatchActionPayload(BaseModel):
+    """批量动作提交：勾选若干条记录，统一执行同一个动作。"""
+
+    action: str
+    entry_ids: list[int] = Field(default_factory=list)
+
+
+class BatchItemResult(BaseModel):
+    """批量动作里单条记录的回执：成功、重复提交或被拦下都附一句可读说明。"""
+
+    id: int
+    task_no: str | None = None
+    outcome: str  # applied / duplicate / blocked
+    ok: bool
+    duplicate: bool = False
+    message: str
+    entry: dict[str, Any] | None = None
+
+
+class BatchActionResult(BaseModel):
+    """批量动作汇总：每条都有回执，个别被拦下不影响其它记录。"""
+
+    action: str
+    total: int
+    applied: int
+    duplicated: int
+    blocked: int
+    message: str = ""
+    results: list[BatchItemResult]
+
+
 class EntryPayload(BaseModel):
     """登记或修改一条业务记录时提交的字段集合。"""
 
