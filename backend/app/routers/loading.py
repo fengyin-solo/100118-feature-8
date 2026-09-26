@@ -5,7 +5,13 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 
-from app.schemas import ActionResult, EntryPayload, PageResult
+from app.schemas import (
+    ActionResult,
+    BatchActionPayload,
+    BatchActionResult,
+    EntryPayload,
+    PageResult,
+)
 from app.services.loading import LoadingService
 
 router = APIRouter(prefix="/api/loading", tags=["装卸任务"])
@@ -30,6 +36,16 @@ def list_entries(
     return PageResult(items=items, total=total, page=page, size=size)
 
 
+@router.post("/batch-actions", response_model=BatchActionResult)
+def run_batch_action(payload: BatchActionPayload) -> BatchActionResult:
+    """批量确认开工/提交复核：逐条独立校验与执行，单条被拦不影响其它，回执逐条说明缘由。"""
+    try:
+        result = service.batch_action(payload.action, [item.model_dump() for item in payload.items])
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return BatchActionResult(**result)
+
+
 @router.get("/{entry_id}", response_model=dict)
 def get_entry(entry_id: int) -> dict:
     """读取单条装卸任务明细；不存在时给出可读的错误说明。"""
@@ -52,10 +68,11 @@ def create_entry(payload: EntryPayload) -> ActionResult:
 def run_action(entry_id: int, payload: EntryPayload) -> ActionResult:
     """对单条装卸任务执行确认开工、提交复核、确认完成；不允许的动作会被拦下并说明原因。"""
     action = str(payload.values.get("action") or "").strip()
-    entry, message = service.run_action(entry_id, action)
+    values = {key: value for key, value in payload.values.items() if key != "action"}
+    entry, message, kind = service.run_action(entry_id, action, values)
     if entry is None:
-        return ActionResult(ok=False, message=message)
-    return ActionResult(ok=True, message=message, entry=entry)
+        return ActionResult(ok=False, message=message, kind=kind)
+    return ActionResult(ok=True, message=message, entry=entry, kind=kind)
 
 
 @router.get("/export")

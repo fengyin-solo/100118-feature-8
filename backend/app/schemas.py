@@ -19,6 +19,44 @@ class ActionResult(BaseModel):
     ok: bool
     message: str
     entry: dict[str, Any] | None = None
+    kind: str = "updated"
+
+
+class BatchActionItem(BaseModel):
+    """批量处理中的单条任务；values 可随提交复核携带完成箱量等覆盖值。"""
+
+    id: int
+    values: dict[str, Any] = Field(default_factory=dict)
+
+
+class BatchActionPayload(BaseModel):
+    """批量开工/复核请求：一个动作对应多条勾选任务。"""
+
+    action: str
+    items: list[BatchActionItem] = Field(default_factory=list)
+    remark: str | None = None
+
+
+class BatchReceiptItem(BaseModel):
+    """单条任务的处理回执：updated 本次生效 / noop 重复跳过 / rejected 被拦截。"""
+
+    id: int
+    taskNo: str | None = None
+    ok: bool
+    kind: str
+    message: str
+    entry: dict[str, Any] | None = None
+
+
+class BatchActionResult(BaseModel):
+    ok: bool
+    action: str
+    total: int
+    updated: int
+    skipped: int
+    blocked: int
+    message: str
+    results: list[BatchReceiptItem]
 
 
 class EntryPayload(BaseModel):
